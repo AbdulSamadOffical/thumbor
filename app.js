@@ -17,7 +17,7 @@ const getImageExtension = async(imageId) => {
                     extensionInfo = data.ContentType.split('/');
                     resolve(extensionInfo[1]);
                 }else{
-                    reject('some thing went wrong')
+                    reject('Something went wrong')
                 }    
             });
         })    
@@ -32,7 +32,8 @@ const getImageExtension = async(imageId) => {
  
 
 const generateThumborUrl = async(dimensions) => {
-    
+
+ 
     // filtering the null images
     const filterImages = data.productSkus.filter((images) => {
         if(images.image != null && images.image.length > 1){
@@ -41,22 +42,32 @@ const generateThumborUrl = async(dimensions) => {
             return false
         }        
     })
-    // imageUrls which are neither null or empty string
-    const imageNames = filterImages.map((images) =>{
-      let imageUrls = images.image.split('.com/')
-      return imageUrls[1]
+    // returning the image ids and accumulating the promises for image extensions
+    let promises =[]
+    const imageNames = filterImages.map((images,i) =>{
+      let imageUrl = images.image.split('.com/')
+      let imageId = imageUrl[1]
+      const result =  getImageExtension(imageId);
+      promises.push(result)
+      return imageId;
     })
+
+    // if anyone of the promise reject all the statements should reject
+
+    return Promise.all(promises).then((val) => {
     let thumborUrls=[];
-    for(let i = 0;i<imageNames.length;i++){
-        const result = await getImageExtension(imageNames[i]);
-        console.log(`http://54.254.235.11:8888/unsafe/fit-in/${dimensions}/filters:upscale()/${imageNames[i]}.${result}`)
-        thumborUrls.push(`http://54.254.235.11:8888/unsafe/fit-in/${dimensions}/filters:upscale()/${imageNames[i]}.${result}`)
-       
+    for(let i = 0;i<promises.length;i++){
+        thumborUrls.push(`http://54.254.235.11:8888/unsafe/fit-in/${dimensions}/filters:upscale()/${imageNames[i]}.${val[i]}`)
     }
-    return thumborUrls;
+        return thumborUrls;
+    })
 
 }
+
+
 generateThumborUrl('200x200')
 .then((data) => {
    console.log(data)
+}).catch((err) => {
+    console.log(err.message)
 })
