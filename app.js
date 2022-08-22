@@ -1,5 +1,5 @@
 // import modules
-const axios = require('axios');
+
 var AWS = require("aws-sdk");
 require('dotenv').config()
 const db = require('./db');
@@ -10,32 +10,25 @@ const csvWriter = createCsvWriter({
   header: [
     {id: 'imageId', title: 'ImageId'},
     {id: 'extension', title: 'Extension'},
+    {id: 'productId', title: 'Product Id'}
   ]
 });
 
-
-
+console.log(process.env.accessKeyId)
+console.log(process.env.secretAccessKey)
 // aws credentials
 let s3 = new AWS.S3({
-    accessKeyId: 'AKIAY3O5JOZIHDT44HMZ',
-    secretAccessKey: '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'
+    accessKeyId: process.env.accessKeyId,
+    secretAccessKey: process.env.secretAccessKey
 })
 
 
 // get the product_skus
 const getAllProductSkus = async(limit, offset) => {
-    let data = await db('product_sku').select('image').limit(limit).offset(offset);
+    let data = await db('product_sku').select(['image','id', 'product_id']).orderBy('id', 'asc').limit(limit).offset(offset);
    
     return data;
 }
-
-// get the product_sku counts
-const getProductSkusCount = async() => {
-    let data = await db('product_sku').count().first();
-    return data; 
-}
-
-
 
 // get image Extensions
 const getImageExtension = async(imageId) => {
@@ -65,6 +58,7 @@ const getImageExtension = async(imageId) => {
 
 const generateImagData = async(productSkus) => {
     // filtering the null images
+    console.log(productSkus)
     const filterImages = productSkus.filter((images) => {
 
         if(images.image != null && images.image.length > 1 &&images.image!='null'){
@@ -86,7 +80,7 @@ const generateImagData = async(productSkus) => {
     return Promise.all(promises).then((val) => {
     let imageMetaData = [];
     for(let i = 0;i<promises.length;i++){
-        imageMetaData.push({imageId: imageNames[i],  extension: val[i] ?val[i]:''})
+        imageMetaData.push({imageId: imageNames[i],  extension: val[i] ?val[i]:'', productId: filterImages[i].product_id})
     }
     console.log(imageMetaData)
     // Writing to csv
@@ -98,32 +92,19 @@ const generateImagData = async(productSkus) => {
 
 }
 
-// async function makeRequest (url) {
-//     try{
-//     const result = await axios.get(url);
-//     return result;
-//     }catch(err){
-//         return err
-//     }
-// }
+
 
 
 async function main (){
-    
-    let count = await getProductSkusCount();
     let offset  = 0;
     let limit = 281
     for (let i = 0;i<150;i++){
-    let data = await getAllProductSkus(limit,offset);
-    let thumborUrlsWithExtensions = await generateImagData(data)
-    console.log(thumborUrlsWithExtensions)
-    console.log(i)
-    offset = offset + limit
+        
+        let data = await getAllProductSkus(limit,offset);
+        let thumborUrlsWithExtensions = await generateImagData(data)
+        offset = offset + limit
+        console.log(`Iteration ${i}`)
     }
-  
 }
 
 main();
-
-
-
